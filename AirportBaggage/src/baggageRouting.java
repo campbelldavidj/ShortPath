@@ -8,42 +8,27 @@ import java.util.Map;
 
 
 public class baggageRouting {
-	static ArrayList<airportRouteLeg> routeLegs = new ArrayList<>();
-	static ArrayList<baggageEntry> bagList = new ArrayList<>();
-	static ArrayList<flightEntry> flightList = new ArrayList<>();
+	static ArrayList<airportRouteLeg> alRoutes = new ArrayList<>();
+	static ArrayList<baggageEntry> alBags = new ArrayList<>();
+	static ArrayList<flightEntry> alFlights = new ArrayList<>();
 	static String lineType="";
 	static boolean skip = false;
 	static Map<String, ArrayList<String>> mapNeighbors = 
 			new HashMap<String, ArrayList<String>>();
-	static ArrayList<String> strNeighbors = new ArrayList<String>();
-	static Map<String, String> processedMap = new HashMap<String, String>();
+	static ArrayList<String> alstrNeighbors = new ArrayList<String>();
+	static Map<String, String> mapProcessed = new HashMap<String, String>();
 	
 	public static void main(String[] args) {
 		
 		// Load Input File
 		loadInputFile(args[1]);
 		
-		// Verify contents of ArrayLists
-		//System.out.println("*** RouteLegs   : "+routeLegs.size());
-		//System.out.println("*** BagList     : "+bagList.size());
-		//System.out.println("*** FlightList  : "+flightList.size());
-		//System.out.println("*** MAP         : "+mapNeighbors.size());
-		//for (String key : mapNeighbors.keySet())
-		//	System.out.printf("*** ---  %s ---> %s \n",key,mapNeighbors.get(key));
-		
 		// Preprocess at table of all possible routes
 		//   The best route for each pair of locations is saved
-		System.out.println("Setting up routes.");
 		routePreprocessing();
-		System.out.println("Preprocessing complete.");
-		
-		// Diagnostic - Show matrix
-		showMatrix();
 		
 		// Process bags
-		System.out.println("Starting to process baggage entries.");
 		processBaggage();
-		System.out.println("Processing complete.");
 	}
 	
 	
@@ -105,10 +90,10 @@ public class baggageRouting {
 				    		 */
 				    		if (mapNeighbors.containsKey(items[0])) {
 				    			// If Node1 is present, add node 2 to list of neighbors
-				    			strNeighbors = mapNeighbors.get(items[0]);
-				    			if (!strNeighbors.contains(items[1])) {
-				    				strNeighbors.add(items[1]);
-				    				mapNeighbors.put(items[0], strNeighbors);
+				    			alstrNeighbors = mapNeighbors.get(items[0]);
+				    			if (!alstrNeighbors.contains(items[1])) {
+				    				alstrNeighbors.add(items[1]);
+				    				mapNeighbors.put(items[0], alstrNeighbors);
 				    			}
 				    		} else {
 				    			// Add node 1 as key and list node 2 as its first neighbor
@@ -118,10 +103,10 @@ public class baggageRouting {
 				    		}
 				    		if (mapNeighbors.containsKey(items[1])) {
 				    			// If Node2 is present, add node 1 to list of neighbors
-				    			strNeighbors = mapNeighbors.get(items[1]);
-				    			if (!strNeighbors.contains(items[0])) {
-				    				strNeighbors.add(items[0]);
-				    				mapNeighbors.put(items[1], strNeighbors);
+				    			alstrNeighbors = mapNeighbors.get(items[1]);
+				    			if (!alstrNeighbors.contains(items[0])) {
+				    				alstrNeighbors.add(items[0]);
+				    				mapNeighbors.put(items[1], alstrNeighbors);
 				    			}
 				    		} else {
 				    			// Add node 2 as key and list node 1 as its first neighbor
@@ -129,8 +114,8 @@ public class baggageRouting {
 				    			newList.add(items[0]);
 				    			mapNeighbors.put(items[1],newList);
 				    		}
-				    		routeLegs.add(new airportRouteLeg(items[0], items[1], Integer.parseInt(items[2])));
-				    		routeLegs.add(new airportRouteLeg(items[1], items[0], Integer.parseInt(items[2])));
+				    		alRoutes.add(new airportRouteLeg(items[0], items[1], Integer.parseInt(items[2])));
+				    		alRoutes.add(new airportRouteLeg(items[1], items[0], Integer.parseInt(items[2])));
 				    		break;
 				    	case "Bags":
 				    		/**
@@ -140,7 +125,7 @@ public class baggageRouting {
 				    		 *            Check flight number against flight list for routing location
 				    		 *            If flight number says "ARRIVAL", then send to baggage claim
 				    		 */
-				    		bagList.add(new baggageEntry(items[0], items[1], items[2]));
+				    		alBags.add(new baggageEntry(items[0], items[1], items[2]));
 				    		break;
 				    	case "Flights":
 				    		/**
@@ -149,7 +134,7 @@ public class baggageRouting {
 				    		 * items[2] : flight destination
 				    		 * items[3] : departure time
 				    		 */
-				    		flightList.add(new flightEntry(items[0], items[1], items[2], items[3]));
+				    		alFlights.add(new flightEntry(items[0], items[1], items[2], items[3]));
 				    		break;
 			    	}
 				}
@@ -173,13 +158,16 @@ public class baggageRouting {
 	
 	private static void processBaggage() {
 		// Loop through the bag list
-		for (baggageEntry bag: bagList) {
+		for (baggageEntry bag: alBags) {
 			String startPoint = bag.location;
 			String endPoint = "";
 			// Identify the destination point from the flight number
-			for (flightEntry flt : flightList ) {
+			for (flightEntry flt : alFlights ) {
 				if (flt.flightID.equals(bag.flightID)) {
 					endPoint = flt.departGate;
+					// Flight arrivals should be routed to the baggage claims area
+					if (endPoint.equals("ARRIVAL"))
+						endPoint = "BaggageClaim";
 					break;
 				}
 			}
@@ -187,25 +175,35 @@ public class baggageRouting {
 			// Search for the shortest path for the bag to travel
 			if (!endPoint.equals("")) {
 				// Look up the path in the preprocessed matrix
-				System.out.println(bag.baggageID+" "+processedMap.get(startPoint+"|"+endPoint));
+				System.out.println(bag.baggageID+" "+mapProcessed.get(startPoint+"|"+endPoint));
 			} else {
+				// Path from bag location to destination cannot be found.  Warn operator.
 				System.out.printf("Could not find destination for bag (%s)\n",bag.baggageID);
 			}
 		}
 	}
 
 	private static void routePreprocessing() {
+		/**
+		 * Preprocessing all possible route combinations
+		 *   Nested loops will find all routes from one point to the other with lowest possible time.
+		 * 
+		 */
 		for (String strX : mapNeighbors.keySet()) {
 			for (String strY : mapNeighbors.keySet()) {
+				// Create key.       Origin | Destination
 				String mapKey = strX + "|" + strY;
+				// Prepare a blank path to pass in to the findPath routine
 				bagPath nullPath = new bagPath("",0);
 				bagPath bpShortPath = new bagPath("",0);
+				// only bother to calculate if the start and end points are different
 				if (strX != strY)
 					bpShortPath = findPath(strX, strY, nullPath);
-				processedMap.put(mapKey, 
+				// Add calculated path to the matrix
+				//    - Allow blank path to fall through to the map where start and end are the same
+				mapProcessed.put(mapKey, 
 						bpShortPath.strLocations.toString().replace("[", "").replace("]", "") 
 						+ " : "+Integer.toString((bpShortPath.intTime)));
-				System.out.println("Finished entry for "+mapKey);
 			}
 		}
 	}
@@ -217,34 +215,26 @@ public class baggageRouting {
 			route = new bagPath(strStart,0);
 		} else {
 			// Get neighbor list
-			if (strStart.equals("A1") && strEnd.equals("A3"))
-				System.out.println("Found offender.");
-			System.out.println("Setting Neighbors.");
 			ArrayList<String> neighbors = mapNeighbors.get(strStart);
-			System.out.println("Clearing possibles.");
+			// Prepare to store possible solutions
 			ArrayList<bagPath> possibles = new ArrayList<bagPath>();
-			System.out.println("Starting loop of neighbors." + neighbors.toString());
 			for (String strLocation : neighbors) {
 				// Only check unused paths
-				System.out.println("check if loc in path passed in");
 				if (!bpPath.strLocations.contains(strLocation)) {
-					System.out.println(strLocation+" not found in "+bpPath.strLocations.toString());
 					bagPath nextPath = bpPath;
+					// Important: Ensure that the current start node is also removed from consideration of downstream solutions
 					nextPath.strLocations.add(strStart);
 					bagPath responsePath;
-					System.out.println("add that to locations path and pass it in to next find.");
 					try {
+						// Find path from neighbor to end point
 						responsePath = findPath(strLocation,strEnd,nextPath);
-						System.out.println("We got this back:  "+responsePath.strLocations.toString()+
-								":"+String.valueOf(responsePath.intTime));
+						// Save result if it's not null
 						if (responsePath != null) {
 							possibles.add(responsePath);
-							System.out.println("Added to possibles.");
 						}
 					} catch (Exception ex) {
 						// Unable to get a valid path back
 						//   - Let the default blank return value fall through
-						System.out.println("Could not add new possible.");
 					}
 				}
 			}
@@ -253,19 +243,17 @@ public class baggageRouting {
 			//      - route is already set to null.  Let it pass.
 			// One possible
 			if (possibles.size() == 1) {
-				System.out.println("Only one possible route here.");
 				// Set route to the only possible
 				route = possibles.get(0);
 				route.strLocations.add(0, strStart);
 				// Grab time for the newly added leg
-				for (airportRouteLeg leg : routeLegs) {
+				for (airportRouteLeg leg : alRoutes) {
 					if (leg.location1.equals((strStart)) && 
 							leg.location2.equals(route.strLocations.get(1))) {
 						route.intTime = route.intTime + leg.time;
 					}
 				}
 			} else if (possibles.size() > 1) {
-				System.out.println("Multiple possible routes here.");
 				// Multiples that need to be parsed
 				int smallIndex = 0;
 				for (int intIndex = 1; intIndex < possibles.size(); intIndex++) {
@@ -279,7 +267,7 @@ public class baggageRouting {
 				route = possibles.get(smallIndex);
 				route.strLocations.add(0, strStart);
 				// Grab time for the newly added leg
-				for (airportRouteLeg leg : routeLegs) {
+				for (airportRouteLeg leg : alRoutes) {
 					if (leg.location1.equals((strStart)) && 
 							leg.location2.equals(route.strLocations.get(1))) {
 						route.intTime = route.intTime + leg.time;
@@ -289,14 +277,5 @@ public class baggageRouting {
 		}
 		System.out.println("About to return :"+String.valueOf(route.intTime)+":"+route.strLocations.toString());
 		return route;
-	}
-	
-	private static void showMatrix() {
-		for (String strX : mapNeighbors.keySet()) {
-			for (String strY : mapNeighbors.keySet()) {
-				String mapKey = strX + "|" + strY;
-				System.out.println("<" + mapKey + ">   " + processedMap.get(mapKey));
-			}
-		}
 	}
 }
