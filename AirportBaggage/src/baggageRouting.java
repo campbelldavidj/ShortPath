@@ -230,7 +230,7 @@ public class baggageRouting {
 				if (!bpPath.strLocations.contains(strLocation)) {
 					System.out.println(strLocation+" not found in "+bpPath.strLocations.toString());
 					bagPath nextPath = bpPath;
-					nextPath.strLocations.add(strLocation);
+					nextPath.strLocations.add(strStart);
 					bagPath responsePath;
 					System.out.println("add that to locations path and pass it in to next find.");
 					try {
